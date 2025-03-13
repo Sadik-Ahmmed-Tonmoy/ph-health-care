@@ -7,15 +7,45 @@ import status from "http-status";
 const loginUser = catchAsync(async (req: Request, res: Response) => {
   const result = await AuthService.loginUser(req.body.email, req.body.password);
 
+  const { refreshToken } = result;
+  res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" });
+
   sendResponse(res, {
     statusCode: status.OK,
     success: true,
     message: "User logged in successfully",
-    data: result,
+    data: {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      needResetPassword: result.needResetPassword,
+    },
   });
 });
 
+const refreshToken = catchAsync(async (req: Request, res: Response) => {
+  const { refreshToken } = req.cookies;
+  console.log(req);
+  if (!refreshToken) {
+    sendResponse(res, {
+      statusCode: status.UNAUTHORIZED,
+      success: false,
+      message: "Unauthorized",
+    });
+    return;
+  }
+  const result = await AuthService.refreshToken(refreshToken);
 
-export const authController ={
-    loginUser
-}
+  sendResponse(res, {
+    statusCode: status.OK,
+    success: true,
+    message: "Token refreshed successfully",
+    data: {
+      accessToken: result.accessToken,
+    },
+  });
+});
+
+export const authController = {
+  loginUser,
+  refreshToken,
+};

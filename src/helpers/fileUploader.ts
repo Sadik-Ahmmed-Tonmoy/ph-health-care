@@ -1,13 +1,54 @@
 import multer from "multer";
 import path from "path";
 import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
+import sharp from "sharp";  // <--- ADD THIS
 
-// Configuration
 cloudinary.config({
   cloud_name: "dbpn5f2mb",
   api_key: "722788225112618",
-  api_secret: "EBn1JHWZkj4-bXvFPEXbCYDv41M", // Click 'View API Keys' above to copy your API secret
+  api_secret: "EBn1JHWZkj4-bXvFPEXbCYDv41M",
 });
+
+const uploadToCloudinary = async (file: any) => {
+  const avifFilePath = `${file.path}.webp`;
+  // Inside uploadToCloudinary
+const { name } = path.parse(file.originalname);
+  try {
+    // Convert to AVIF using sharp
+    await sharp(file.path)
+      .toFormat("webp", { quality: 100 })
+      .toFile(avifFilePath);
+    // Upload AVIF file to Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(
+        avifFilePath,
+        {
+          public_id: name,
+          overwrite: true,
+          resource_type: "image",
+        },
+        (error: any, result: any) => {
+          fs.unlinkSync(file.path); // delete original file
+          fs.unlinkSync(avifFilePath); // delete avif file
+
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        }
+      );
+    });
+
+    return result;
+  } catch (error) {
+    // Clean up files in case of failure
+    if (fs.existsSync(avifFilePath)) fs.unlinkSync(avifFilePath);
+    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    throw error;
+  }
+};
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -20,47 +61,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-const uploadToCloudinary = async (file: any) => {
-  return new Promise((resolve, reject) => {
-    cloudinary.uploader.upload(file.path,
-      {
-        public_id: file.originalname,
-        overwrite: true,
-        resource_type: "auto",
-      },
-      (error: any, result: any) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(result);
-      }
-    });
-  });
-};
-
-// (async function() {
-
-//     // Upload an image
-//      const uploadResult = await
-
-//     // Optimize delivery by resizing and applying auto-format and auto-quality
-//     const optimizeUrl = cloudinary.url('shoes', {
-//         fetch_format: 'auto',
-//         quality: 'auto'
-//     });
-
-//     console.log(optimizeUrl);
-
-//     // Transform the image: auto-crop to square aspect_ratio
-//     const autoCropUrl = cloudinary.url('shoes', {
-//         crop: 'auto',
-//         gravity: 'auto',
-//         width: 500,
-//         height: 500,
-//     });
-
-//     console.log(autoCropUrl);
-// })();
 export const fileUploader = {
   upload: upload.single("file"),
   uploadToCloudinary,

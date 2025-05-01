@@ -1,22 +1,30 @@
-import express, { NextFunction, Request, Response } from 'express'
+import express, { NextFunction, Request, Response } from "express";
 
-import { UserRole } from '@prisma/client'
-import { fileUploader } from '../../../helpers/fileUploader'
-import authGuard from '../../middlewares/authGuard'
-import { userController } from './user.controller'
-import { userValidation } from './user.validation'
+import { UserRole } from "@prisma/client";
+import { fileUploader } from "../../../helpers/fileUploader";
+import authGuard from "../../middlewares/authGuard";
+import { userController } from "./user.controller";
+import { userValidation } from "./user.validation";
 
-const router  = express.Router()
+const router = express.Router();
 
- 
+router.post(
+  "/create-admin",
+  authGuard(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  fileUploader.upload,
+  (req: Request, res: Response, next: NextFunction) => {
+    req.body = userValidation.createAdminValidation.parse(JSON.parse(req.body.data));
+    return userController.createAdmin(req, res, next);
+  }
+);
+router.post(
+  "/create-doctor",
+  authGuard(UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  fileUploader.upload,
+  (req: Request, res: Response, next: NextFunction) => {
+    req.body = userValidation.createDoctorValidation.parse(JSON.parse(req.body.data));
+    return userController.createDoctor(req, res, next);
+  }
+);
 
-
-router.post('/',  authGuard(UserRole.SUPER_ADMIN, UserRole.ADMIN),
-fileUploader.upload,
-(req: Request, res: Response, next: NextFunction) => {
-    req.body = userValidation.createAdminValidation.parse(JSON.parse(req.body.data))
-    return userController.createAdmin(req, res, next)
-}
-)
-
-export  const userRoutes = router
+export const userRoutes = router;
